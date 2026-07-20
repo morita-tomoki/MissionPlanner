@@ -7,7 +7,8 @@ more than one craft.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
+from typing import NamedTuple
 
 from missionctl.core.codec import MavlinkCodec, MavlinkMessage
 from missionctl.core.link import Link
@@ -16,10 +17,18 @@ from missionctl.core.util.observable import Observable
 from missionctl.core.vehicle import Vehicle
 
 
+class _Outbound(NamedTuple):
+    send: Callable[[MavlinkMessage], Awaitable[None]]
+    make: Callable[..., MavlinkMessage]
+
+
 class FleetManager:
     def __init__(self) -> None:
         self._router = Router()
         self._vehicles: dict[Address, Vehicle] = {}
+        # Bound while a link is pumping; vehicles discovered on that link use it
+        # for their outbound (command) path.
+        self._outbound: _Outbound | None = None
         # Current fleet as an immutable tuple; the UI binds to this.
         self.fleet: Observable[tuple[Vehicle, ...]] = Observable(())
         self._router.on_unknown(self._on_unknown)
@@ -43,6 +52,11 @@ class FleetManager:
         returns b"" (e.g. a tlog reaching its end); a live link runs until closed.
         """
         codec = codec or MavlinkCodec()
+
+        async def send(msg: MavlinkMessage) -> None:
+            await link.write(codec.encode(msg))
+
+        self._outbound = _Outbound(send=send, make=codec.make)
         await link.open()
         while chunk := await link.read():
             self.ingest(codec.decode(chunk))
@@ -55,6 +69,8 @@ class FleetManager:
 
     def _add(self, address: Address) -> Vehicle:
         vehicle = Vehicle(address[0], address[1])
+        if self._outbound is not None:
+            vehicle.bind_output(send=self._outbound.send, make=self._outbound.make)
         self._vehicles[address] = vehicle
         self._router.register(address, vehicle.deliver)
         vehicle.start()

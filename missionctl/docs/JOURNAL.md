@@ -5,6 +5,31 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — M3 commands (Plane) + scope decision
+
+- Scope confirmed by operator and recorded as ADR-0005: **control target = Plane**,
+  Rover = display-only (vessel), Copter = excluded. Answered QUESTIONS Q3.
+- `CommandProtocol` (`core/protocols/command.py`): arm/disarm + set_mode via
+  `COMMAND_LONG` → `COMMAND_ACK`, explicit timeout + bounded retries, returns
+  `Result[int]`. Plane mode table in `core/modes.py` (name→number for set_mode,
+  reverse for display).
+- Gave `Vehicle` an outbound path: `bind_output(send, make)` and a `request`
+  primitive that registers the reply waiter **before** sending (so a fast ACK is
+  never missed — a race I hit while designing the test). Incoming messages now
+  both reduce state and resolve pending waiters. `FleetManager.run_link` wires the
+  link's writer + `codec.make` into each discovered vehicle.
+- `codec.make(msg_type, **fields)` added so command construction stays confined to
+  the codec (ADR-0004); protocols never import pymavlink.
+- Tooling notes: `Result` helper classmethods didn't bind the generic under pyright
+  strict → construct `Result(...)` directly and let the `-> Result[int]` return
+  type infer T. Disabled ruff ASYNC109 (our protocol API intentionally takes
+  `timeout` params; applied internally via `asyncio.timeout`).
+- 39 tests green (arm accepted, rejection→failure, timeout after N retries,
+  set_mode builds correct COMMAND_LONG, unknown mode doesn't send, unbound vehicle
+  refuses commands). Next: `ParamProtocol`.
+
+---
+
 ## 2026-07-20 — M2 state from telemetry
 
 - Added `Router` (demux by `(sysid, compid)`, callback-based so it needs no

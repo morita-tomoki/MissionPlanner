@@ -51,8 +51,15 @@ class MavlinkCodec:
         return cast("list[MavlinkMessage]", real)
 
     def encode(self, message: Any) -> bytes:
-        """Serialize a dialect message (built via :attr:`raw`) to wire bytes."""
+        """Serialize a dialect message (built via :attr:`raw` or :meth:`make`)."""
         return cast(bytes, message.pack(self._mav))
+
+    def make(self, msg_type: str, **fields: Any) -> MavlinkMessage:
+        """Construct an outbound dialect message by snake_case name, e.g.
+        ``make("command_long", target_system=1, ...)``. Keeps pymavlink message
+        construction confined to this module (callers build commands through here)."""
+        cls = getattr(mavlink, f"MAVLink_{msg_type}_message")
+        return cast("MavlinkMessage", cls(**fields))
 
     @property
     def raw(self) -> Any:

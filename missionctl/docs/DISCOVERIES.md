@@ -30,6 +30,27 @@ topic heading. (Decisions with trade-offs go in `decisions/` as ADRs instead.)
   execution environment; build dialect messages via `MavlinkCodec.raw` so the
   import stays in that one module.
 
+## Commands (Plane)
+
+- Arm/disarm: `COMMAND_LONG` command=400 (MAV_CMD_COMPONENT_ARM_DISARM),
+  param1=1/0, param2=21196 to force. Set mode: command=176 (MAV_CMD_DO_SET_MODE),
+  param1=1 (MAV_MODE_FLAG_CUSTOM_MODE_ENABLED), param2=custom_mode number.
+  Both answered by `COMMAND_ACK` with `result` (0 = MAV_RESULT_ACCEPTED).
+- These IDs are the stable MAVLink standard; hardcoded in `protocols/command.py`
+  to avoid importing pymavlink outside the codec (ADR-0004).
+- Register the ACK waiter BEFORE sending the command (Vehicle.request does this),
+  or a fast ACK can arrive before the waiter exists and be missed.
+
+## Python tooling gotchas
+
+- pyright strict won't bind a generic through a `@classmethod`/`@staticmethod`
+  factory that uses the class TypeVar (`Result.success` → `Result[Unknown]`).
+  Construct the dataclass directly and let the function's `-> Result[int]` return
+  annotation infer the element type.
+- ruff `ASYNC109` flags any async function with a `timeout` parameter. Our protocol
+  API intentionally exposes per-op timeouts, so it's ignored in pyproject; the
+  timeout is enforced internally with `asyncio.timeout(...)`.
+
 ## UDP transport
 
 - Connect to SITL: `UdpLink(local_addr=("0.0.0.0", 14550))` (listen; learns the

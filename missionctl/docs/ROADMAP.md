@@ -25,11 +25,12 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] Reducers for HEARTBEAT, ATTITUDE, GLOBAL_POSITION_INT, SYS_STATUS, GPS_RAW_INT
 - [x] Test: tlog replay → vehicle-state snapshot; multi-sysid routing
 
-## M3 — Commands & protocols (async, cancellable, retrying)
-- [ ] `CommandProtocol`: arm/disarm, set_mode (COMMAND_LONG + ACK handling)
-- [ ] `ParamProtocol`: get / set / download-all with progress
+## M3 — Commands & protocols (async, cancellable, retrying)  — Plane (ADR-0005)
+- [x] `CommandProtocol`: arm/disarm, set_mode (COMMAND_LONG + COMMAND_ACK,
+      timeout + retries); Vehicle outbound `request` primitive; Plane mode table
+- [ ] `ParamProtocol`: get / set / download-all with progress  ← next
 - [ ] `MissionProtocol`: download / upload / set-current
-- [ ] SITL smoke test: connect → arm → set GUIDED → disarm
+- [ ] SITL smoke test: connect → arm → set GUIDED → disarm (waiting on SITL @14550)
 
 ## M4 — Multi-vehicle
 - [ ] `FleetManager`: multiple links, vehicle add/remove observable

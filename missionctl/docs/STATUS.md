@@ -4,33 +4,35 @@
 > Update it at the end of every session (`/end-session`).
 
 ## Baseline
-- Branch: `claude/hud-structure-rendering-ja83ju` (M0 PR merged; M1+M2 on top).
-- `make check`: green locally — 30 tests, ruff, pyright strict, 2 import contracts.
+- Branch: `claude/hud-structure-rendering-ja83ju` (M0 PR merged; M1–M3 on top).
+- `make check`: green locally — 39 tests, ruff, pyright strict, 2 import contracts.
+
+## Scope (ADR-0005)
+- Control target = **Plane**. Rover = display-only (vessel). Copter = excluded.
 
 ## Done
-- M0 operating scaffold: config, `CLAUDE.md`, `docs/` ledger, `.claude/skills`, CI.
-- **M1 transport & codec**: `MavlinkCodec` (codec-only), `LoopbackLink`, `UdpLink`
-  (SITL transport), `TlogReplayLink`.
-- **M2 state from telemetry**: `Router` (demux by sysid/compid, callback-based),
-  `Vehicle` (asyncio actor: inbox→reduce→publish `Observable[VehicleState]`),
-  `FleetManager` (auto-creates vehicles, `fleet` observable, `run_link`). Reducers
-  for HEARTBEAT/ATTITUDE/GLOBAL_POSITION_INT/SYS_STATUS/GPS_RAW_INT (SI units).
-  Tests: tlog-replay snapshot + two-vehicle independent routing.
+- M0 operating scaffold; M1 transport & codec (`UdpLink` = SITL transport).
+- **M2 state from telemetry**: Router, Vehicle actor, FleetManager, 5 reducers.
+- **M3 commands (CommandProtocol)**: arm/disarm + set_mode for Plane via
+  `COMMAND_LONG`→`COMMAND_ACK`, explicit timeout + bounded retries, `Result`
+  outcomes. Vehicle gained an outbound path (`bind_output`) and a `request`
+  primitive (registers the reply waiter *before* sending, so ACKs aren't missed).
+  `core/modes.py` Plane mode table. 39 tests (arm/nack/timeout/set_mode/bad-mode).
 
 ## Now
 - Nothing in progress.
 
 ## Next single action
-- **M3 (commands)**: implement `CommandProtocol` in
-  `core/protocols/command.py` — arm/disarm + set_mode via `COMMAND_LONG`, awaiting
-  `COMMAND_ACK`, with timeout + retry (async, cancellable, no blocking). Wire a
-  `send`/subscribe path from `Vehicle` (Vehicle currently only receives; add an
-  outbound sink + a way for protocols to await specific reply messages). Follow
-  the `/add-protocol` skill. Unit-test with a fake message stream; SITL test later.
+- **M3 cont. — `ParamProtocol`** in `core/protocols/param.py`: get one
+  (PARAM_REQUEST_READ→PARAM_VALUE), set (PARAM_SET→confirming PARAM_VALUE), and
+  download-all (PARAM_REQUEST_LIST→N×PARAM_VALUE with progress via `IProgress`-style
+  callback). Reuse the Vehicle `request` primitive; for download-all add a
+  streaming variant that collects until the expected count. Follow `/add-protocol`.
+  Unit-test with a fake responder; SITL later.
 
 ## Later (waiting on external)
 - **SITL** in a separate repo; connect via `UdpLink(local_addr=("0.0.0.0", 14550))`.
-  SITL-marked tests stay skipped until then.
+  SITL-marked tests stay skipped until then. First SITL use: arm→set GUIDED→disarm.
 
 ## Later (waiting on external)
 - **SITL** is developed in a separate repo; connect via `UdpLink(local_addr=

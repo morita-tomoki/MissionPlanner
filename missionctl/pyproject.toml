@@ -48,6 +48,10 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 # pycodestyle, pyflakes, isort, bugbear, pyupgrade, async-specific checks.
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
+# ASYNC109: flags `timeout` parameters on async functions. Our protocol API
+# deliberately takes explicit per-operation timeouts (arm/set_mode/request);
+# the timeout is applied internally with `asyncio.timeout`. Intentional design.
+ignore = ["ASYNC109"]
 
 [tool.pyright]
 include = ["src", "tests"]
