@@ -5,6 +5,26 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — M2 state from telemetry
+
+- Added `Router` (demux by `(sysid, compid)`, callback-based so it needs no
+  dependency on the vehicle/fleet layers — replaces the legacy global
+  `sysidcurrent`), `Vehicle` (asyncio actor per craft: private inbox →
+  `reduce()` → publish `Observable[VehicleState]`; ADR-0003), and `FleetManager`
+  (auto-creates a vehicle on first sighting of a new address, exposes a `fleet`
+  observable, `run_link` pumps bytes→codec→router).
+- Message reducers: HEARTBEAT (armed flag + custom_mode), ATTITUDE,
+  GLOBAL_POSITION_INT, SYS_STATUS, GPS_RAW_INT — one small pure fn each, all
+  normalising to SI units. Extended `VehicleState` with `Gps` + `custom_mode`.
+- Routing keys off the *decoded* message's src ids (set at pack time), not the
+  raw constructed message — noted for future tests.
+- Human-readable mode names are vehicle-type specific; parked as QUESTIONS Q3,
+  state keeps the raw `custom_mode` for now.
+- 30 tests green (5 reducer unit tests, two-vehicle routing, fleet observable,
+  full tlog-replay snapshot). Next: M3 commands (arm/set_mode via COMMAND_LONG).
+
+---
+
 ## 2026-07-20 — M1 transport & codec
 
 - Implemented `MavlinkCodec` (ADR-0004: pymavlink as codec only, no I/O). Stateful

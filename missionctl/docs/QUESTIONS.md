@@ -21,6 +21,16 @@ Options: A) QtLocation + OSM plugin (offline tiles possible)  B) embed a web map
 Recommendation: A (native QtQuick, offline-capable, no browser dependency).
 Answer:
 
+## Q3 — Flight-mode name mapping   [status: OPEN]
+Context: HEARTBEAT gives a numeric `custom_mode`; the human-readable name
+(e.g. GUIDED, LOITER, AUTO) depends on vehicle type (Copter/Plane/Rover differ).
+State currently stores the raw number only.
+Options: A) map to names in the presentation layer using a per-MAV_TYPE table
+         (pymavlink's `mode_mapping_*` helpers). B) resolve in core once MAV_TYPE
+         is known from HEARTBEAT.
+Recommendation: A — keep core numeric/SI; names are a display concern.
+Answer:
+
 ## Q2 — Headless daemon now or later?   [status: OPEN]
 Context: A separate core process (ZeroMQ/WebSocket) isolates links from UI crashes
 and enables multi-operator, but adds IPC complexity for a solo dev.

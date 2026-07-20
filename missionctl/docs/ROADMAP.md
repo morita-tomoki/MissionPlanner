@@ -18,11 +18,12 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] `TlogReplayLink` — replay a `.tlog`, strip µs timestamps, feed codec
 - [x] Test: replay a fixture tlog, assert N HEARTBEATs parsed (+ codec/udp/loopback)
 
-## M2 — State from telemetry
-- [ ] `Router` demux by (sysid, compid)
-- [ ] `Vehicle` actor: inbox → reduce → publish `Observable[VehicleState]`
-- [ ] Reducers for HEARTBEAT, ATTITUDE, GLOBAL_POSITION_INT, SYS_STATUS, GPS_RAW_INT
-- [ ] Test: tlog replay → snapshot of the state timeline
+## M2 — State from telemetry  ✅
+- [x] `Router` demux by (sysid, compid)
+- [x] `Vehicle` actor: inbox → reduce → publish `Observable[VehicleState]`
+- [x] `FleetManager`: auto-creates vehicles on first sighting, `run_link`
+- [x] Reducers for HEARTBEAT, ATTITUDE, GLOBAL_POSITION_INT, SYS_STATUS, GPS_RAW_INT
+- [x] Test: tlog replay → vehicle-state snapshot; multi-sysid routing
 
 ## M3 — Commands & protocols (async, cancellable, retrying)
 - [ ] `CommandProtocol`: arm/disarm, set_mode (COMMAND_LONG + ACK handling)

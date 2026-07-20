@@ -34,14 +34,26 @@ class Battery:
 
 
 @dataclass(frozen=True, slots=True)
+class Gps:
+    fix_type: int = 0
+    satellites: int = 0
+    hdop: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class VehicleState:
     sysid: int = 0
     compid: int = 0
     armed: bool = False
+    # Raw autopilot flight-mode number. Human-readable mode names are
+    # vehicle-type specific (Copter/Plane/Rover differ) and are resolved in the
+    # presentation layer — see docs/QUESTIONS.md Q3.
+    custom_mode: int = 0
     mode: str = "UNKNOWN"
     attitude: Attitude = field(default_factory=Attitude)
     position: GlobalPosition = field(default_factory=GlobalPosition)
     battery: Battery = field(default_factory=Battery)
+    gps: Gps = field(default_factory=Gps)
 
     @staticmethod
     def initial(sysid: int = 0, compid: int = 0) -> VehicleState:
