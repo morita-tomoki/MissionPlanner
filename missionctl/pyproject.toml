@@ -58,3 +58,13 @@ typeCheckingMode = "strict"
 root = "src/missionctl/qt"
 reportUnknownMemberType = "none"
 reportMissingTypeStubs = "none"
+
+# The codec is the one place that touches untyped pymavlink. Relaxing unknown-type
+# reporting is confined to this boundary module; its public API stays fully typed
+# (MavlinkMessage), so the rest of the strict core is unaffected. See ADR-0004.
+[[tool.pyright.executionEnvironments]]
+root = "src/missionctl/core/codec"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportMissingTypeStubs = "none"

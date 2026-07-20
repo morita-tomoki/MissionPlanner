@@ -25,5 +25,6 @@ type = layers
 layers =
     missionctl.qt
     missionctl.core.state
+    missionctl.core.codec
     missionctl.core.link
     missionctl.core.util

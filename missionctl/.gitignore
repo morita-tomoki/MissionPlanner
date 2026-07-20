@@ -8,6 +8,11 @@ dist/
 build/
 *.egg-info/
 .DS_Store
+
+# The repo-root .gitignore ignores `docs/` (legacy C# generated docs). Our ledger
+# under missionctl/docs/ is the project's externalized memory and MUST be tracked.
+!docs/
+!docs/**
 # local flight logs used for replay tests live under tests/data/, keep those.
 *.tlog
 !tests/data/*.tlog
