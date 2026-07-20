@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.pyright/
+dist/
+build/
+*.egg-info/
+.DS_Store
+# local flight logs used for replay tests live under tests/data/, keep those.
+*.tlog
+!tests/data/*.tlog

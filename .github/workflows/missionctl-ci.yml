@@ -1,0 +1,47 @@
+# CI gate for MissionCtl. Mirrors `make check` so a PR is green here iff it is
+# green locally. This is the trust substrate that lets long autonomous sessions
+# land changes without a human reviewing every line.
+name: missionctl-ci
+
+on:
+  push:
+    paths:
+      - "missionctl/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "missionctl/**"
+      - ".github/workflows/ci.yml"
+
+defaults:
+  run:
+    working-directory: missionctl
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies (core + dev, no Qt needed)
+        run: uv sync --extra dev
+
+      - name: Lint (ruff)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Typecheck (pyright strict)
+        run: uv run pyright
+
+      - name: Architecture contracts (core must not import Qt)
+        run: uv run lint-imports --config .importlinter
+
+      - name: Tests (headless — no hardware/SITL)
+        run: uv run pytest

@@ -1,0 +1,29 @@
+# import-linter config (INI format). Enforces architectural invariants in
+# `make contracts`. The key one: the pure-Python C2 core must never depend on Qt.
+# NOTE: every module named in a `layers` contract must actually exist, so the
+# layering contract grows as new core packages (codec, router, vehicle, fleet,
+# protocols) are added. Keep it in sync — see docs/ARCHITECTURE.md.
+
+[importlinter]
+root_package = missionctl
+# Required because PySide6/qasync (forbidden below) are external packages.
+include_external_packages = True
+
+[importlinter:contract:core-no-qt]
+name = core must not import Qt / GUI
+type = forbidden
+source_modules =
+    missionctl.core
+forbidden_modules =
+    missionctl.qt
+    PySide6
+    qasync
+
+[importlinter:contract:layering]
+name = layering (lower layers must not import upper layers)
+type = layers
+layers =
+    missionctl.qt
+    missionctl.core.state
+    missionctl.core.link
+    missionctl.core.util
