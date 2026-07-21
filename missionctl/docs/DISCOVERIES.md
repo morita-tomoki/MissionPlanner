@@ -8,11 +8,38 @@ topic heading. (Decisions with trade-offs go in `decisions/` as ADRs instead.)
 
 ## ArduPilot SITL
 
-- Start one vehicle: `sim_vehicle.py -v ArduCopter --console --map -I0`
-- Second instance: `-I1` (its ports are offset by +10; default GCS UDP is
-  `udp:127.0.0.1:14550`, instance 1 is `:14560`).
-- SITL takes a few seconds to emit the first HEARTBEAT — wait for it before arming.
-- (Confirm these on first real use and update if the local setup differs.)
+VERIFIED 2026-07-20: built genuine ArduPlane SITL from source in this container
+and ran the full stack against it — connect, real telemetry, set_mode GUIDED,
+arm, disarm, and a param read all succeeded. Our protocol assumptions held
+(ArduPlane DOES answer DO_SET_MODE and ARM_DISARM with COMMAND_ACK; Plane mode
+numbers correct; SI reducers sane).
+
+### Build from source (no apt/sudo needed)
+1. Clone shallow with submodules:
+   `git clone --depth 1 --recurse-submodules --shallow-submodules -b Plane-4.5 \
+    https://github.com/ArduPilot/ardupilot.git`  (~380 MB)
+2. Build deps: `pexpect future pymavlink` via pip, plus **EmPy 3.3.4** — its wheel
+   FAILS to build under modern pip. Workaround: EmPy is a single file; extract it:
+   `pip download --no-deps --no-binary :all: empy==3.3.4 -d /tmp/e && tar xf … &&
+    cp empy-3.3.4/em.py <user-site-packages>/`.
+3. `cd ardupilot && python3 ./waf configure --board sitl && python3 ./waf plane`
+   (~3.5 min; binary at `build/sitl/bin/arduplane`).
+
+### Run it emitting MAVLink to our GCS on UDP 14550
+```
+build/sitl/bin/arduplane --model plane --speedup 10 \
+  --home -35.363261,149.165230,584,353 \
+  --defaults <defaults.parm> \
+  --serial0 udpclient:127.0.0.1:14550
+```
+- Device string for UDP out is `udpclient:127.0.0.1:14550`. SITL is the udp client;
+  our `UdpLink(local_addr=("0.0.0.0", 14550))` listens and learns the peer.
+- Put `ARMING_CHECK 0` in the defaults file so the smoke test can arm. Base plane
+  params: `Tools/autotest/models/plane.parm`.
+- GPS reaches a 3D/RTK fix within a couple of seconds; first HEARTBEAT is near-
+  instant. Then `make sitl` passes against it.
+- (sim_vehicle.py + MAVProxy is the "normal" path but needs MAVProxy; running the
+  binary directly with `--serial0 udpclient:` avoids that dependency.)
 
 ## pymavlink (used as codec only)
 

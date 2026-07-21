@@ -17,13 +17,21 @@ Keep them fast and deterministic. If SITL is not installed, the marked tests ski
 (they must never fail the normal `make check`).
 
 ## Manual (debugging)
-1. Start one vehicle (needs ArduPilot's `sim_vehicle.py` on PATH):
+
+If no SITL is installed, build ArduPlane SITL from source — the full, verified
+recipe (clone, the EmPy 3.3.4 `em.py` workaround, `waf` build, and the exact
+launch line) is in `docs/DISCOVERIES.md` → "ArduPilot SITL". Summary:
+
+1. Launch the built binary emitting MAVLink to our GCS on UDP 14550:
    ```bash
-   sim_vehicle.py -v ArduCopter --console --map -I0
+   build/sitl/bin/arduplane --model plane --speedup 10 \
+     --home -35.363261,149.165230,584,353 --defaults <defaults.parm> \
+     --serial0 udpclient:127.0.0.1:14550
    ```
-   For a second vehicle in the same run, add another with `-I1` (ports +10).
-2. Connect MissionCtl to `udp:127.0.0.1:14550` (instance 1: `:14560`).
-3. Wait for the first HEARTBEAT before commanding (SITL needs a few seconds).
+   Put `ARMING_CHECK 0` in the defaults so the smoke test can arm.
+2. Our GCS listens: `UdpLink(local_addr=("0.0.0.0", 14550))` (this is what
+   `test_sitl_smoke.py` does). First HEARTBEAT is near-instant; GPS fix in ~2 s.
+3. `make sitl` should then pass (connect → arm → GUIDED → disarm).
 
 ## After running
 - If you learned something about the local SITL setup (flags, ports, timing),

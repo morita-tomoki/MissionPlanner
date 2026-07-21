@@ -5,6 +5,24 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — Verified against REAL ArduPlane SITL ✅
+
+- Built genuine ArduPlane SITL from source in this container (Plane-4.5, waf,
+  ~3.5 min) and ran the full missionctl stack against it over UDP 14550.
+- Results: connected (sysid 1/compid 1); real telemetry reduced correctly
+  (mode=MANUAL, gps_fix=6, 10 sats, alt 584.1 m, batt 12.6 V); `set_mode GUIDED`
+  → ACCEPTED; `arm` → ACCEPTED (state reflected armed=True, mode=GUIDED);
+  `disarm` → ACCEPTED; `params.get("WP_LOITER_RAD")` → 80.0. `make sitl` passes.
+- This closes the top review risk for the command/param/telemetry paths: our
+  assumptions held against real firmware (ArduPlane DOES COMMAND_ACK DO_SET_MODE
+  and ARM_DISARM; Plane mode numbers correct; SI reducers sane).
+- Full reproducible build+run recipe recorded in DISCOVERIES (incl. the EmPy 3.3.4
+  em.py extraction workaround and the `--serial0 udpclient:127.0.0.1:14550` launch).
+- Note: the SITL install lives outside the repo and is ephemeral (reclaimed with
+  the container); the recipe is the durable artifact.
+
+---
+
 ## 2026-07-20 — Hardening + simple SITL
 
 - Actor robustness: `Vehicle._run` now guards `reduce`/dispatch with try/except +

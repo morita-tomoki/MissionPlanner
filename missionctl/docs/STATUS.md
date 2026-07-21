@@ -11,6 +11,11 @@
 ## Scope (ADR-0005)
 - Control target = **Plane**. Rover = display-only (vessel). Copter = excluded.
 
+## Verified against real firmware ✅ (2026-07-20)
+- Built genuine ArduPlane SITL from source and ran the full stack over UDP 14550:
+  connect, real telemetry, set_mode GUIDED, arm, disarm, param read — all OK.
+  Build+run recipe in DISCOVERIES → "ArduPilot SITL". (SITL install is ephemeral.)
+
 ## Done
 - M0 operating scaffold; M1 transport & codec (`UdpLink` = SITL transport).
 - **M2 state from telemetry**: Router, Vehicle actor, FleetManager, 5 reducers.
