@@ -42,10 +42,14 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] Request telemetry streams on connect (REQUEST_DATA_STREAM ALL)
 - [x] `UdpLink.open()` idempotent (double-open no longer rebinds the socket)
 
-## M4 — Multi-vehicle
-- [ ] `FleetManager`: multiple links, vehicle add/remove observable
-- [ ] Group command via `asyncio.gather`
-- [ ] Test: two SITL instances (I0 / I1), independent state, group arm
+## M4 — Multi-vehicle  ✅
+- [x] `FleetManager`: multiple links; each vehicle bound to its discovery link's
+      outbound (per-chunk active-outbound, race-free); `fleet` observable
+- [x] Group command via `asyncio.gather` (arm all)
+- [x] Ignore MAVLink sysid 0 (reserved) — no phantom (0,0) vehicle
+- [x] Headless: two FakePlanes on two UDP links (independent state, group arm)
+- [x] SITL: two real ArduPlane 4.6.3 instances (sysid 1/2, ports 14550/14560),
+      independent state + group arm verified
 
 ## M5 — Qt/QML presentation
 - [ ] `qasync` app bootstrap (`missionctl.qt.app`)

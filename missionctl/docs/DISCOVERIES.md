@@ -64,6 +64,17 @@ build/sitl/bin/arduplane --model plane --speedup 10 \
   execution environment; build dialect messages via `MavlinkCodec.raw` so the
   import stays in that one module.
 
+## Multi-vehicle
+
+- Two SITL instances default to the SAME `SYSID_THISMAV` (1) and would collide as
+  one vehicle. Give each a distinct sysid via a per-instance defaults file
+  (`SYSID_THISMAV 1` / `2`), run with `-I0`/`-I1` (offsets sim ports) in separate
+  working dirs, and distinct `--serial0 udpclient:127.0.0.1:14550` / `:14560`.
+- SITL emits some traffic from **sysid 0** during boot (reserved/broadcast id).
+  FleetManager ignores sysid 0 so it doesn't spawn a phantom (0,0) vehicle.
+- Each vehicle is bound to the link it was discovered on; group commands are just
+  `asyncio.gather(v.commands.arm() for v in fleet.vehicles)`.
+
 ## Mission (Plane, verified on 4.6.3)
 
 - Upload is vehicle-driven: after MISSION_COUNT, the vehicle sends

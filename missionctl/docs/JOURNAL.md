@@ -5,6 +5,23 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — M4 multi-vehicle (verified on 2× real SITL) ✅
+
+- Fixed the FleetManager outbound binding for multi-link: each vehicle now binds
+  to the outbound of the link it was discovered on. Implemented as a per-chunk
+  "active outbound" set immediately before the synchronous routing block — since a
+  decoded chunk is routed with no intervening await, it's race-free even with
+  several links pumping concurrently on the one event loop. (Previously a single
+  global _outbound meant a vehicle could command out the wrong link.)
+- Ignore MAVLink sysid 0 (reserved broadcast/unknown) so a phantom (0,0) vehicle
+  isn't created — observed coming from SITL during boot. Filter + test added.
+- Verified: headless (two FakePlanes, sysid 1&2, on two UDP links → independent
+  state, group arm via gather, disarm-one-leaves-other-armed) AND two real
+  ArduPlane 4.6.3 SITL instances (sysid 1 on 14550, sysid 2 on 14560): same
+  assertions pass; fleet is exactly {(1,1),(2,1)} with the sysid-0 filter.
+- 53 headless tests + 3 sitl tests. The C2 core is feature-complete through M4.
+  Next: M5 Qt/QML UI (Mac work; not exercisable headlessly here).
+
 ## 2026-07-20 — M3 MissionProtocol (verified on 4.6.3) ✅ — M3 complete
 
 - `MissionProtocol` (`core/protocols/mission.py`) + `MissionItem` dataclass

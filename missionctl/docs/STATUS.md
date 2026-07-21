@@ -37,22 +37,27 @@
 - Added in-repo `FakePlane` (tests/support) + real-UDP e2e test, and a
   `sitl`-marked smoke test for the external SITL at 14550.
 
-## M3 complete ✅
-- Command, Param, and Mission protocols all implemented and **verified against
-  real ArduPlane 4.6.3** (arm/mode/disarm, param get/set + 1445-param download,
-  mission upload/download/set_current). Two `sitl`-marked tests pass on 4.6.3.
+## M3 + M4 complete ✅
+- **M3**: Command/Param/Mission protocols — verified on real ArduPlane 4.6.3.
+- **M4 multi-vehicle**: FleetManager binds each vehicle to its discovery link's
+  outbound (per-chunk active-outbound, race-free across concurrent links);
+  ignores reserved sysid 0. Verified with two FakePlanes (headless) AND **two
+  real SITL instances** (sysid 1/2 on 14550/14560): independent state + group arm
+  via `asyncio.gather`. 53 headless tests + 3 sitl tests.
 
 ## Now
-- Nothing in progress.
+- Nothing in progress. The whole C2 core (connect → telemetry → commands →
+  params → mission → multi-vehicle) is implemented and SITL-verified.
 
 ## Next single action
-- **M4 — multi-vehicle**: run two SITL instances (I0 on 14550, I1 on 14560),
-  connect one `UdpLink` per instance to the same `FleetManager`, assert two
-  independent vehicles with independent state, and add a group command
-  (`arm all`) via `asyncio.gather`. The actor model already supports this; this
-  milestone proves it end-to-end. (Alternatively jump to **M5 Qt/QML UI** — the
-  biggest remaining chunk — if the UI is higher priority than fleet scale.)
-- Superseded next action was MissionProtocol (now done). in `core/protocols/mission.py`: download
+- **M5 — Qt/QML UI** (the largest remaining chunk). Start `missionctl.qt`:
+  `qasync` app bootstrap (`missionctl.qt.app`), a `FleetModel(QAbstractListModel)`
+  over `FleetManager.fleet`, and a `VehicleVM(QObject)` exposing one vehicle's
+  `VehicleState` via `Q_PROPERTY`/`NOTIFY` + `@Slot` commands. First slice: a
+  minimal QML window listing the fleet and showing one vehicle's mode/armed/gps.
+  NOTE: Qt needs the `gui` extra and a display — this milestone is real work on
+  the Mac; it cannot be exercised headlessly in the cloud container. Keep all
+  logic in ViewModels so it stays unit-testable without a display. in `core/protocols/mission.py`: download
   (MISSION_REQUEST_LIST → MISSION_COUNT → N× MISSION_REQUEST_INT/MISSION_ITEM_INT),
   upload (MISSION_COUNT → serve MISSION_REQUEST_INT → MISSION_ACK), and
   set-current (MISSION_SET_CURRENT). Uses both `request` and `open_stream`; the

@@ -37,6 +37,17 @@ async def test_two_vehicles_get_independent_state() -> None:
     await fleet.stop()
 
 
+async def test_sysid_zero_is_ignored() -> None:
+    # MAVLink sysid 0 is reserved (broadcast/unknown); it must not create a vehicle.
+    fleet = FleetManager()
+    fleet.ingest(_heartbeat(0, armed=False, mode=0))
+    assert fleet.vehicles == ()
+    # a real vehicle still registers
+    fleet.ingest(_heartbeat(1, armed=False, mode=0))
+    assert {v.address for v in fleet.vehicles} == {(1, 1)}
+    await fleet.stop()
+
+
 async def test_fleet_observable_tracks_new_vehicles() -> None:
     fleet = FleetManager()
     seen: list[int] = []

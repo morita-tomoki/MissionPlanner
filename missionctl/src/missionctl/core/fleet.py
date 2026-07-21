@@ -1,7 +1,12 @@
 """FleetManager — owns links, routes their traffic, and manages the set of
 vehicles. Vehicles are created automatically the first time a new
-``(sysid, compid)`` is seen, so multi-vehicle "just works" for any link carrying
-more than one craft.
+``(sysid, compid)`` is seen, so multi-vehicle "just works", including the case of
+several vehicles each on their own link.
+
+Each vehicle is bound to the outbound of the link it was *discovered* on, so its
+commands go back out the right link. Because a link's decoded chunk is routed
+synchronously (no await between decode and routing), the per-chunk "active
+outbound" is race-free even with multiple links pumping concurrently on the loop.
 """
 
 from __future__ import annotations
@@ -22,18 +27,22 @@ class _Outbound(NamedTuple):
     make: Callable[..., MavlinkMessage]
 
 
+def _is_real_source(msg: MavlinkMessage) -> bool:
+    """MAVLink system id 0 is the reserved "unknown/broadcast" id, never a real
+    vehicle. Ignore such messages so they don't spawn a phantom (0,0) vehicle
+    (observed from SITL during boot)."""
+    return msg.get_srcSystem() != 0
+
+
 class FleetManager:
     def __init__(self) -> None:
         self._router = Router()
         self._vehicles: dict[Address, Vehicle] = {}
-        # Bound while a link is pumping; vehicles discovered on that link use it
-        # for their outbound (command) path.
-        self._outbound: _Outbound | None = None
-        # Whether newly discovered vehicles should request telemetry streams
-        # (true for live links, false for read-only replay).
-        self._request_streams = False
-        # Strong refs to fire-and-forget tasks so they aren't GC'd mid-flight.
         self._bg_tasks: set[asyncio.Task[None]] = set()
+        # Set immediately before each synchronous routing block; a vehicle newly
+        # discovered during that block binds to this link's outbound.
+        self._active_outbound: _Outbound | None = None
+        self._active_request_streams = False
         # Current fleet as an immutable tuple; the UI binds to this.
         self.fleet: Observable[tuple[Vehicle, ...]] = Observable(())
         self._router.on_unknown(self._on_unknown)
@@ -46,29 +55,38 @@ class FleetManager:
         return self._vehicles.get((sysid, compid))
 
     def ingest(self, messages: Iterable[MavlinkMessage]) -> None:
-        """Route already-decoded messages to their vehicles."""
+        """Route already-decoded messages with no link context (test/injection).
+        Vehicles created this way are unbound (no outbound command path)."""
+        self._active_outbound = None
+        self._active_request_streams = False
         for msg in messages:
-            self._router.route(msg)
+            if _is_real_source(msg):
+                self._router.route(msg)
 
     async def run_link(
         self, link: Link, codec: MavlinkCodec | None = None, *, request_streams: bool = True
     ) -> None:
         """Open a link and pump its bytes through the codec + router until EOF.
 
-        One codec instance per link (it holds parser state). Runs until the link
-        returns b"" (e.g. a tlog reaching its end); a live link runs until closed.
-        Set ``request_streams=False`` for read-only sources like tlog replay.
+        One codec instance per link (it holds parser state). Vehicles discovered on
+        this link bind to its outbound. Set ``request_streams=False`` for read-only
+        sources like tlog replay.
         """
         codec = codec or MavlinkCodec()
 
         async def send(msg: MavlinkMessage) -> None:
             await link.write(codec.encode(msg))
 
-        self._outbound = _Outbound(send=send, make=codec.make)
-        self._request_streams = request_streams
+        outbound = _Outbound(send=send, make=codec.make)
         await link.open()
         while chunk := await link.read():
-            self.ingest(codec.decode(chunk))
+            messages = codec.decode(chunk)
+            # Set the active context right before the synchronous routing block.
+            self._active_outbound = outbound
+            self._active_request_streams = request_streams
+            for msg in messages:
+                if _is_real_source(msg):
+                    self._router.route(msg)
 
     async def stop(self) -> None:
         await asyncio.gather(*(v.stop() for v in self._vehicles.values()))
@@ -78,12 +96,13 @@ class FleetManager:
 
     def _add(self, address: Address) -> Vehicle:
         vehicle = Vehicle(address[0], address[1])
-        if self._outbound is not None:
-            vehicle.bind_output(send=self._outbound.send, make=self._outbound.make)
+        outbound = self._active_outbound
+        if outbound is not None:
+            vehicle.bind_output(send=outbound.send, make=outbound.make)
         self._vehicles[address] = vehicle
         self._router.register(address, vehicle.deliver)
         vehicle.start()
-        if self._outbound is not None and self._request_streams:
+        if outbound is not None and self._active_request_streams:
             # Fire-and-forget; request_data_streams handles its own errors.
             task = asyncio.create_task(
                 vehicle.request_data_streams(), name=f"reqstream-{address[0]}-{address[1]}"
