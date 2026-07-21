@@ -5,6 +5,21 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — STATUSTEXT capture (M5/HUD prep) ✅
+
+- Added STATUSTEXT reduction: `reduce_statustext` folds lines into
+  `VehicleState.messages` (bounded to 20, oldest first) with a `StatusText`
+  (severity, text). This is where PreArm:/Arm:/sensor-error messages arrive —
+  answering the operator's question (they were NOT captured before). `last_message`
+  convenience for a HUD banner.
+- MAVLink2 chunk reassembly: chunks with the same non-zero id are joined; a chunk
+  shorter than the 50-byte field is the last. Buffer lives in state
+  (`statustext_reassembly`) so the reducer stays pure.
+- Verified on real 4.6.3: enabled ARMING_CHECK=1 and attempted arm → rejected
+  (MAV_RESULT=4) and we captured "Arm: Accels inconsistent" (severity 2). Added a
+  sitl regression test that skips gracefully when the vehicle happens to be armable.
+- 62 headless tests + 4 sitl.
+
 ## 2026-07-20 — Robustness pass (lost/reconnect/mode-confirm/safety) ✅
 
 Four operator-requested hardening items:

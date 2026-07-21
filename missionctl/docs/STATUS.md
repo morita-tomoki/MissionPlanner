@@ -52,10 +52,16 @@
   STATE 5300). Mode-confirm + safety verified on real 4.6.3; lost/reconnect via
   headless tests. 58 headless tests + 3 sitl.
 
+## M5 prep (done 2026-07-20)
+- STATUSTEXT capture: `VehicleState.messages` (bounded, oldest-first) with MAVLink2
+  chunk reassembly + `last_message`. This is where PreArm:/Arm:/error lines live
+  for the future HUD banner. Verified on 4.6.3 (captured "Arm: Accels inconsistent",
+  severity 2). 62 headless tests + 4 sitl.
+
 ## Now
 - Nothing in progress. The whole C2 core (connect → telemetry → commands →
   params → mission → multi-vehicle) is implemented, SITL-verified on 4.6.3, and
-  hardened (lost detection, reconnection, mode-confirm, safety switch).
+  hardened (lost detection, reconnection, mode-confirm, safety switch, STATUSTEXT).
 
 ## Next single action
 - **M5 — Qt/QML UI** (the largest remaining chunk). Start `missionctl.qt`:

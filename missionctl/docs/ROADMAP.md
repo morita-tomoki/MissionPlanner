@@ -59,6 +59,12 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] SITL: two real ArduPlane 4.6.3 instances (sysid 1/2, ports 14550/14560),
       independent state + group arm verified
 
+## M5 prep (done ahead of the UI)
+- [x] Capture STATUSTEXT into `VehicleState.messages` (bounded backlog) with
+      MAVLink2 chunk reassembly — this is where PreArm:/Arm:/error lines live, for
+      the HUD banner. `last_message` convenience + severity per line. Verified on
+      4.6.3 (captured "Arm: Accels inconsistent", severity 2).
+
 ## M5 — Qt/QML presentation
 - [ ] `qasync` app bootstrap (`missionctl.qt.app`)
 - [ ] `FleetModel(QAbstractListModel)` + `VehicleVM`

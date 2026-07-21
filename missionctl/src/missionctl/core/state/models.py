@@ -41,6 +41,16 @@ class Gps:
 
 
 @dataclass(frozen=True, slots=True)
+class StatusText:
+    """A STATUSTEXT line from the vehicle (e.g. "PreArm: Compass not healthy").
+    ``severity`` is MAV_SEVERITY (0=EMERGENCY … 7=DEBUG; ≤3 is an error/critical,
+    4=WARNING). The presentation layer decides colour/expiry."""
+
+    severity: int
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
 class VehicleState:
     sysid: int = 0
     compid: int = 0
@@ -57,7 +67,16 @@ class VehicleState:
     # Connection liveness (actor-managed metadata, not a telemetry reducer): True
     # while HEARTBEATs are arriving, False once none seen within the timeout.
     link_alive: bool = True
+    # Recent STATUSTEXT lines (PreArm:/Arm:/errors/etc.), oldest first, bounded.
+    messages: tuple[StatusText, ...] = ()
+    # Internal reassembly buffer for chunked (MAVLink2) STATUSTEXT: (id, text).
+    statustext_reassembly: tuple[int, str] = (0, "")
 
     @staticmethod
     def initial(sysid: int = 0, compid: int = 0) -> VehicleState:
         return VehicleState(sysid=sysid, compid=compid)
+
+    @property
+    def last_message(self) -> StatusText | None:
+        """Most recent STATUSTEXT, or None. Handy for a HUD banner."""
+        return self.messages[-1] if self.messages else None
