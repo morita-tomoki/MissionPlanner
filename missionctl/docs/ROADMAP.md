@@ -31,7 +31,14 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] `ParamProtocol`: get / set / download-all with progress (Vehicle
       `open_stream` primitive + `protocols/channel.py` I/O contracts)
 - [ ] `MissionProtocol`: download / upload / set-current  ← next
-- [ ] SITL smoke test: connect → arm → set GUIDED → disarm (waiting on SITL @14550)
+- [x] SITL smoke test scaffold: connect → arm → set GUIDED → disarm
+      (`tests/test_sitl_smoke.py`, `sitl`-marked, skips if 14550 quiet). Also a
+      real-UDP e2e via in-repo `FakePlane` runs in the default gate.
+
+## Robustness (hardening pass)
+- [x] Vehicle actor survives a malformed message (guarded reduce + logging)
+- [x] Request telemetry streams on connect (REQUEST_DATA_STREAM ALL)
+- [x] `UdpLink.open()` idempotent (double-open no longer rebinds the socket)
 
 ## M4 — Multi-vehicle
 - [ ] `FleetManager`: multiple links, vehicle add/remove observable

@@ -64,6 +64,8 @@ class UdpLink(Link):
         return cast("tuple[str, int]", sockname)[1]
 
     async def open(self) -> None:
+        if self._transport is not None:
+            return  # already open — opening again would rebind to a new socket
         self._state.set(LinkState.CONNECTING)
         loop = asyncio.get_running_loop()
         transport, _ = await loop.create_datagram_endpoint(

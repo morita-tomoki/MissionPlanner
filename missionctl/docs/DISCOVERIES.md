@@ -56,6 +56,21 @@ topic heading. (Decisions with trade-offs go in `decisions/` as ADRs instead.)
 - Connect to SITL: `UdpLink(local_addr=("0.0.0.0", 14550))` (listen; learns the
   peer from the first datagram and can reply). A `remote_addr`-only link uses a
   *connected* socket, so `sendto(data)` takes no address (passing one raises).
+- A **connected** UDP socket only accepts datagrams whose source matches its
+  connected peer. So if you open a listen socket twice you rebind to a new source
+  port, and a peer connected to the *first* port silently drops your writes.
+  `UdpLink.open()` is therefore idempotent — a second open() is a no-op.
+- Telemetry: ArduPilot stays nearly silent until the GCS sends REQUEST_DATA_STREAM
+  (stream id 0 = ALL) or SET_MESSAGE_INTERVAL. We send REQUEST_DATA_STREAM on
+  connect. If a real vehicle looks "connected but no telemetry", check this first.
+
+## Testing
+
+- `tests/support/fakeplane.py` is a minimal ArduPlane sim over real UDP (heartbeat
+  + COMMAND_ACK). Use it for real-transport e2e without external SITL. It encodes
+  OUR assumptions, so it is not a substitute for the `sitl`-marked smoke test.
+- `sitl`-marked tests are excluded from `make check` (addopts `-m 'not sitl'`) and
+  run via `make sitl` (which skips if 14550 is quiet).
 
 ## tlog format
 

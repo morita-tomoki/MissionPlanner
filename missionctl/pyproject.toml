@@ -38,7 +38,9 @@ packages = ["src/missionctl"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-q"
+# Exclude SITL-marked tests from the default headless run; `make sitl` overrides
+# this with `-m sitl`.
+addopts = "-q -m 'not sitl'"
 
 [tool.ruff]
 line-length = 100
@@ -52,6 +54,11 @@ select = ["E", "F", "I", "B", "UP", "ASYNC"]
 # deliberately takes explicit per-operation timeouts (arm/set_mode/request);
 # the timeout is applied internally with `asyncio.timeout`. Intentional design.
 ignore = ["ASYNC109"]
+
+[tool.ruff.lint.per-file-ignores]
+# waiters poll state that other tasks mutate; an Event-based rewrite would need
+# the Observable to expose an awaitable — overkill for a test helper.
+"tests/support/waiters.py" = ["ASYNC110"]
 
 [tool.pyright]
 include = ["src", "tests"]

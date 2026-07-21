@@ -4,8 +4,9 @@
 > Update it at the end of every session (`/end-session`).
 
 ## Baseline
-- Branch: `claude/hud-structure-rendering-ja83ju` — open PR #2 (M1–M3) into master.
-- `make check`: green locally — 44 tests, ruff, pyright strict, 2 import contracts.
+- Branch: `claude/hud-structure-rendering-ja83ju` — open PR #2 into master.
+- `make check`: green locally — 47 tests + 1 sitl (deselected), ruff, pyright
+  strict, 2 import contracts. `make sitl` skips cleanly when no SITL is up.
 
 ## Scope (ADR-0005)
 - Control target = **Plane**. Rover = display-only (vessel). Copter = excluded.
@@ -21,6 +22,14 @@
   progress callback; completes at param_count, fails on idle). Added Vehicle
   `open_stream` primitive and `protocols/channel.py` (shared I/O contracts +
   `MessageStream`). 44 tests.
+
+## Hardening (done this session)
+- Vehicle actor no longer dies on a malformed message (guarded reduce + logging).
+- Telemetry requested on connect (REQUEST_DATA_STREAM ALL @4Hz) for live links.
+- `UdpLink.open()` is idempotent (fixed a double-open socket-rebind bug found via
+  the FakePlane e2e — see JOURNAL/DISCOVERIES).
+- Added in-repo `FakePlane` (tests/support) + real-UDP e2e test, and a
+  `sitl`-marked smoke test for the external SITL at 14550.
 
 ## Now
 - Nothing in progress.

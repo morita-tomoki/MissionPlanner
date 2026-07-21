@@ -72,7 +72,7 @@ async def test_replay_folds_telemetry_into_vehicle_state(tmp_path: Path) -> None
     _write_flight(tlog)
 
     fleet = FleetManager()
-    await fleet.run_link(TlogReplayLink(tlog))
+    await fleet.run_link(TlogReplayLink(tlog), request_streams=False)
 
     vehicle = fleet.get(1, 1)
     assert vehicle is not None

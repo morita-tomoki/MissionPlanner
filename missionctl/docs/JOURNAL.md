@@ -5,6 +5,29 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — Hardening + simple SITL
+
+- Actor robustness: `Vehicle._run` now guards `reduce`/dispatch with try/except +
+  logging, so one malformed message can't silently kill a vehicle's task (it
+  previously would, freezing that vehicle's state).
+- Telemetry on connect: `Vehicle.request_data_streams` (REQUEST_DATA_STREAM ALL);
+  `FleetManager` fires it for newly discovered vehicles on live links
+  (`run_link(request_streams=…)`, default True; replay passes False).
+- Simple SITL: added in-repo `FakePlane` (tests/support) that emits heartbeats and
+  ACKs commands over real UDP, plus `test_udp_end_to_end.py` (runs in the default
+  gate — first coverage of the *real* transport+command path, not fakes) and
+  `test_sitl_smoke.py` (`sitl`-marked, targets external 14550, skips if quiet).
+  Excluded `sitl` from the default pytest run.
+- BUG FOUND & FIXED via the e2e: `UdpLink.open()` was not idempotent. The test
+  opened the link to read its port, then `run_link` opened it again, binding a
+  second socket; heartbeats to the first socket still arrived (so discovery
+  "worked") but writes went out the second socket, whose source port the peer's
+  connected socket rejected — commands silently never arrived. `open()` is now
+  idempotent. Recorded in DISCOVERIES.
+- 47 tests + 1 sitl (skipped). Next: MissionProtocol.
+
+---
+
 ## 2026-07-20 — M3 params (ParamProtocol) + streaming primitive
 
 - `ParamProtocol` (`core/protocols/param.py`): `get` (PARAM_REQUEST_READ→

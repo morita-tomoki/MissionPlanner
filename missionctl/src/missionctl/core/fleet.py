@@ -29,6 +29,11 @@ class FleetManager:
         # Bound while a link is pumping; vehicles discovered on that link use it
         # for their outbound (command) path.
         self._outbound: _Outbound | None = None
+        # Whether newly discovered vehicles should request telemetry streams
+        # (true for live links, false for read-only replay).
+        self._request_streams = False
+        # Strong refs to fire-and-forget tasks so they aren't GC'd mid-flight.
+        self._bg_tasks: set[asyncio.Task[None]] = set()
         # Current fleet as an immutable tuple; the UI binds to this.
         self.fleet: Observable[tuple[Vehicle, ...]] = Observable(())
         self._router.on_unknown(self._on_unknown)
@@ -45,11 +50,14 @@ class FleetManager:
         for msg in messages:
             self._router.route(msg)
 
-    async def run_link(self, link: Link, codec: MavlinkCodec | None = None) -> None:
+    async def run_link(
+        self, link: Link, codec: MavlinkCodec | None = None, *, request_streams: bool = True
+    ) -> None:
         """Open a link and pump its bytes through the codec + router until EOF.
 
         One codec instance per link (it holds parser state). Runs until the link
         returns b"" (e.g. a tlog reaching its end); a live link runs until closed.
+        Set ``request_streams=False`` for read-only sources like tlog replay.
         """
         codec = codec or MavlinkCodec()
 
@@ -57,6 +65,7 @@ class FleetManager:
             await link.write(codec.encode(msg))
 
         self._outbound = _Outbound(send=send, make=codec.make)
+        self._request_streams = request_streams
         await link.open()
         while chunk := await link.read():
             self.ingest(codec.decode(chunk))
@@ -74,5 +83,12 @@ class FleetManager:
         self._vehicles[address] = vehicle
         self._router.register(address, vehicle.deliver)
         vehicle.start()
+        if self._outbound is not None and self._request_streams:
+            # Fire-and-forget; request_data_streams handles its own errors.
+            task = asyncio.create_task(
+                vehicle.request_data_streams(), name=f"reqstream-{address[0]}-{address[1]}"
+            )
+            self._bg_tasks.add(task)
+            task.add_done_callback(self._bg_tasks.discard)
         self.fleet.set(tuple(self._vehicles.values()))
         return vehicle

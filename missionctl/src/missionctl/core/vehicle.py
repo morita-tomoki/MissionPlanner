@@ -16,6 +16,7 @@ Two primitives serve the protocols:
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from missionctl.core.codec import MavlinkMessage
 from missionctl.core.protocols import (
@@ -29,6 +30,11 @@ from missionctl.core.protocols import (
 from missionctl.core.state import VehicleState, reduce
 from missionctl.core.util.observable import Observable
 
+log = logging.getLogger(__name__)
+
+# MAV_DATA_STREAM_ALL — request every telemetry stream (see DISCOVERIES).
+_DATA_STREAM_ALL = 0
+
 
 class Vehicle:
     def __init__(self, sysid: int, compid: int) -> None:
@@ -40,6 +46,7 @@ class Vehicle:
         self._waiters: list[tuple[Predicate, asyncio.Future[MavlinkMessage]]] = []
         self._streams: list[tuple[Predicate, asyncio.Queue[MavlinkMessage]]] = []
         self._send: SendFn | None = None
+        self._make: MakeFn | None = None
         self._commands: CommandProtocol | None = None
         self._params: ParamProtocol | None = None
 
@@ -66,6 +73,7 @@ class Vehicle:
     def bind_output(self, *, send: SendFn, make: MakeFn) -> None:
         """Wire the outbound path (called by FleetManager with the link's writer)."""
         self._send = send
+        self._make = make
         self._commands = CommandProtocol(make=make, request=self.request, target=self.address)
         self._params = ParamProtocol(
             make=make,
@@ -101,6 +109,26 @@ class Vehicle:
             if entry in self._waiters:
                 self._waiters.remove(entry)
 
+    async def request_data_streams(self, rate_hz: int = 4) -> None:
+        """Ask the vehicle to start sending telemetry. ArduPilot stays largely
+        silent until a GCS requests streams (or sets message intervals), so this
+        is sent once on connect. Fire-and-forget; failures are logged, not raised
+        (e.g. a read-only replay link has nothing to send to)."""
+        if self._make is None or self._send is None:
+            return
+        msg = self._make(
+            "request_data_stream",
+            target_system=self.sysid,
+            target_component=self.compid,
+            req_stream_id=_DATA_STREAM_ALL,
+            req_message_rate=rate_hz,
+            start_stop=1,
+        )
+        try:
+            await self._send(msg)
+        except Exception:
+            log.debug("request_data_streams failed for %s", self.address, exc_info=True)
+
     def open_stream(self, predicate: Predicate) -> MessageStream:
         """Open a live feed of incoming messages matching ``predicate``."""
         queue: asyncio.Queue[MavlinkMessage] = asyncio.Queue()
@@ -134,11 +162,18 @@ class Vehicle:
         while True:
             msg = await self._inbox.get()
             try:
-                self._state.set(reduce(self._state.value, msg))
-                self._resolve_waiters(msg)
-                self._fan_out_to_streams(msg)
+                self._process(msg)
+            except Exception:
+                # A single malformed message must never kill the actor — that
+                # would silently freeze this vehicle's state. Log and carry on.
+                log.exception("error processing message for %s", self.address)
             finally:
                 self._inbox.task_done()
+
+    def _process(self, msg: MavlinkMessage) -> None:
+        self._state.set(reduce(self._state.value, msg))
+        self._resolve_waiters(msg)
+        self._fan_out_to_streams(msg)
 
     def _resolve_waiters(self, msg: MavlinkMessage) -> None:
         for entry in list(self._waiters):
