@@ -5,6 +5,21 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — M3 MissionProtocol (verified on 4.6.3) ✅ — M3 complete
+
+- `MissionProtocol` (`core/protocols/mission.py`) + `MissionItem` dataclass
+  (int lat/lon, matching MISSION_ITEM_INT): download (REQUEST_LIST→COUNT→
+  N×REQUEST_INT/ITEM_INT→ACK), upload (COUNT→answer the vehicle's item requests→
+  ACK — a handshake state machine using `open_stream`), and set_current.
+- Verified against real ArduPlane 4.6.3: upload 3 items → ACCEPTED, download → 3,
+  set_current(1) → ok. Added a `sitl`-marked mission roundtrip test; both sitl
+  tests pass on 4.6.3.
+- Real-firmware behavior observed and handled: ArduPilot stores seq0 as home
+  (frame 0, AMSL ~584 m) and normalizes our frame=6 (GLOBAL_RELATIVE_ALT_INT)
+  waypoints to frame=3 (GLOBAL_RELATIVE_ALT) on download; z values preserved.
+- 51 headless tests + 2 sitl. M3 (Command/Param/Mission) is complete and
+  SITL-verified. Next: M4 multi-vehicle (or M5 Qt/QML UI).
+
 ## 2026-07-20 — Pinned target firmware to ArduPlane 4.6.3 ✅
 
 - Operator specified ArduPlane 4.6.3 as the only target version. Rebuilt SITL from

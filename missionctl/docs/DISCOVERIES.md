@@ -64,6 +64,18 @@ build/sitl/bin/arduplane --model plane --speedup 10 \
   execution environment; build dialect messages via `MavlinkCodec.raw` so the
   import stays in that one module.
 
+## Mission (Plane, verified on 4.6.3)
+
+- Upload is vehicle-driven: after MISSION_COUNT, the vehicle sends
+  MISSION_REQUEST_INT(seq) for each item; the GCS answers with MISSION_ITEM_INT;
+  the vehicle finishes with MISSION_ACK(type=0=MAV_MISSION_ACCEPTED).
+- On download, ArduPilot returns seq0 as the HOME item (frame 0 / global AMSL,
+  its own home altitude), and reports relative-alt waypoints as frame 3
+  (GLOBAL_RELATIVE_ALT) even if uploaded as frame 6 (…_INT). z values preserved.
+  So an upload→download roundtrip is NOT byte-identical — compare semantically.
+- `MISSION_CURRENT` in 4.6.x has fields `seq,total,mission_state,mission_mode`
+  (no target ids — it's a broadcast). set_current confirms via its `seq`.
+
 ## Commands (Plane)
 
 - Arm/disarm: `COMMAND_LONG` command=400 (MAV_CMD_COMPONENT_ARM_DISARM),

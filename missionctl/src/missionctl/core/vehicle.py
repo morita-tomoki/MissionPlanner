@@ -23,6 +23,7 @@ from missionctl.core.protocols import (
     CommandProtocol,
     MakeFn,
     MessageStream,
+    MissionProtocol,
     ParamProtocol,
     Predicate,
     SendFn,
@@ -49,6 +50,7 @@ class Vehicle:
         self._make: MakeFn | None = None
         self._commands: CommandProtocol | None = None
         self._params: ParamProtocol | None = None
+        self._mission: MissionProtocol | None = None
 
     @property
     def address(self) -> tuple[int, int]:
@@ -70,12 +72,25 @@ class Vehicle:
             raise RuntimeError("vehicle has no outbound link bound (call bind_output)")
         return self._params
 
+    @property
+    def mission(self) -> MissionProtocol:
+        if self._mission is None:
+            raise RuntimeError("vehicle has no outbound link bound (call bind_output)")
+        return self._mission
+
     def bind_output(self, *, send: SendFn, make: MakeFn) -> None:
         """Wire the outbound path (called by FleetManager with the link's writer)."""
         self._send = send
         self._make = make
         self._commands = CommandProtocol(make=make, request=self.request, target=self.address)
         self._params = ParamProtocol(
+            make=make,
+            send=self._send_message,
+            request=self.request,
+            open_stream=self.open_stream,
+            target=self.address,
+        )
+        self._mission = MissionProtocol(
             make=make,
             send=self._send_message,
             request=self.request,

@@ -25,13 +25,15 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] Reducers for HEARTBEAT, ATTITUDE, GLOBAL_POSITION_INT, SYS_STATUS, GPS_RAW_INT
 - [x] Test: tlog replay → vehicle-state snapshot; multi-sysid routing
 
-## M3 — Commands & protocols (async, cancellable, retrying)  — Plane (ADR-0005)
+## M3 — Commands & protocols (async, cancellable, retrying)  — Plane (ADR-0005)  ✅
 - [x] `CommandProtocol`: arm/disarm, set_mode (COMMAND_LONG + COMMAND_ACK,
       timeout + retries); Vehicle outbound `request` primitive; Plane mode table
 - [x] `ParamProtocol`: get / set / download-all with progress (Vehicle
       `open_stream` primitive + `protocols/channel.py` I/O contracts)
-- [ ] `MissionProtocol`: download / upload / set-current  ← next
-- [x] SITL smoke test scaffold: connect → arm → set GUIDED → disarm
+- [x] `MissionProtocol`: download / upload (handshake state machine) / set-current
+      — verified against real 4.6.3 (upload 3 → download 3 → set_current)
+- [x] SITL smoke test scaffold: connect → arm → set GUIDED → disarm + mission
+      roundtrip
       (`tests/test_sitl_smoke.py`, `sitl`-marked, skips if 14550 quiet). Also a
       real-UDP e2e via in-repo `FakePlane` runs in the default gate.
 
