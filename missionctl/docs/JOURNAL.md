@@ -5,7 +5,18 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
-## 2026-07-20 — Verified against REAL ArduPlane SITL ✅
+## 2026-07-20 — Pinned target firmware to ArduPlane 4.6.3 ✅
+
+- Operator specified ArduPlane 4.6.3 as the only target version. Rebuilt SITL from
+  tag `Plane-4.6.3` and re-verified over real UDP 14550: connect, telemetry,
+  set_mode GUIDED, arm/disarm, and a FULL parameter download (`download_all` →
+  **1445 params**) all succeeded. `make sitl` passes against 4.6.3.
+- Recorded as ADR-0006 (pin) and updated the DISCOVERIES build recipe to the tag.
+- Gotcha: ArduPilot's `--recurse-submodules` shallow clone left `modules/waf` and
+  `modules/mavlink` empty; `./waf` self-heals to "try again" and exits 0 without
+  building. Fix: `git submodule update --init --recursive --depth 1` first.
+
+## 2026-07-20 — Verified against REAL ArduPlane SITL (initial, on 4.5)
 
 - Built genuine ArduPlane SITL from source in this container (Plane-4.5, waf,
   ~3.5 min) and ran the full missionctl stack against it over UDP 14550.

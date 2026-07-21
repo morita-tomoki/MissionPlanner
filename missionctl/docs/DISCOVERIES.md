@@ -8,16 +8,23 @@ topic heading. (Decisions with trade-offs go in `decisions/` as ADRs instead.)
 
 ## ArduPilot SITL
 
-VERIFIED 2026-07-20: built genuine ArduPlane SITL from source in this container
-and ran the full stack against it — connect, real telemetry, set_mode GUIDED,
-arm, disarm, and a param read all succeeded. Our protocol assumptions held
-(ArduPlane DOES answer DO_SET_MODE and ARM_DISARM with COMMAND_ACK; Plane mode
+TARGET FIRMWARE IS PINNED: **ArduPlane 4.6.3** (tag `Plane-4.6.3`) — ADR-0006.
+Build and verify only against this version.
+
+VERIFIED 2026-07-20 against 4.6.3: full stack over real UDP 14550 — connect,
+real telemetry (mode=MANUAL, gps_fix=6, 10 sats, 584 m, 12.6 V), set_mode GUIDED,
+arm, disarm, AND a full parameter download (`download_all` → 1445 params) all
+succeeded. Assumptions held (ArduPlane DOES ACK DO_SET_MODE/ARM_DISARM; Plane mode
 numbers correct; SI reducers sane).
 
 ### Build from source (no apt/sudo needed)
-1. Clone shallow with submodules:
-   `git clone --depth 1 --recurse-submodules --shallow-submodules -b Plane-4.5 \
+1. Clone shallow at the pinned tag:
+   `git clone --depth 1 --recurse-submodules --shallow-submodules -b Plane-4.6.3 \
     https://github.com/ArduPilot/ardupilot.git`  (~380 MB)
+   IMPORTANT: the recursive clone here can leave some submodules (e.g. `modules/waf`,
+   `modules/mavlink`) empty, and `./waf` then just self-heals and asks to re-run
+   without building. Run `git submodule update --init --recursive --depth 1` before
+   building, and confirm `git submodule status --recursive | grep '^-'` is empty.
 2. Build deps: `pexpect future pymavlink` via pip, plus **EmPy 3.3.4** — its wheel
    FAILS to build under modern pip. Workaround: EmPy is a single file; extract it:
    `pip download --no-deps --no-binary :all: empy==3.3.4 -d /tmp/e && tar xf … &&

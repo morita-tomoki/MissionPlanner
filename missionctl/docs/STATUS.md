@@ -11,10 +11,11 @@
 ## Scope (ADR-0005)
 - Control target = **Plane**. Rover = display-only (vessel). Copter = excluded.
 
-## Verified against real firmware ✅ (2026-07-20)
-- Built genuine ArduPlane SITL from source and ran the full stack over UDP 14550:
-  connect, real telemetry, set_mode GUIDED, arm, disarm, param read — all OK.
-  Build+run recipe in DISCOVERIES → "ArduPilot SITL". (SITL install is ephemeral.)
+## Target firmware: ArduPlane 4.6.3 (pinned, ADR-0006)
+- Verified 2026-07-20 against **4.6.3** over real UDP 14550: connect, telemetry,
+  set_mode GUIDED, arm, disarm, and full `download_all` (1445 params) — all OK.
+  Build+run recipe in DISCOVERIES → "ArduPilot SITL" (pins tag Plane-4.6.3; note
+  the mandatory `git submodule update --init --recursive` step). SITL is ephemeral.
 
 ## Done
 - M0 operating scaffold; M1 transport & codec (`UdpLink` = SITL transport).
