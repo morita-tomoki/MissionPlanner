@@ -74,7 +74,7 @@ async def test_set_mode_builds_correct_command() -> None:
 
     v.bind_output(send=capture_then_ack, make=CODEC.make)
     v.start()
-    res = await v.commands.set_mode("GUIDED", timeout=1.0)
+    res = await v.commands.set_mode("GUIDED", timeout=1.0, confirm=False)
     assert res.ok
 
     d = sent[0].to_dict()
@@ -83,6 +83,73 @@ async def test_set_mode_builds_correct_command() -> None:
     assert int(d["param2"]) == 15  # GUIDED
     assert d["target_system"] == 2
     assert d["target_component"] == 1
+    await v.stop()
+
+
+def _heartbeat(custom_mode: int) -> MavlinkMessage:
+    return CODEC.make(
+        "heartbeat",
+        type=1,
+        autopilot=3,
+        base_mode=1,
+        custom_mode=custom_mode,
+        system_status=4,
+        mavlink_version=3,
+    )
+
+
+async def test_set_mode_confirms_via_heartbeat() -> None:
+    v = Vehicle(1, 1)
+
+    async def responder(msg: MavlinkMessage) -> None:
+        if msg.get_type() == "COMMAND_LONG":
+            d = msg.to_dict()
+            v.deliver(_ack(int(d["command"]), result=0))
+            v.deliver(_heartbeat(int(d["param2"])))  # report the new mode
+
+    v.bind_output(send=responder, make=CODEC.make)
+    v.start()
+    res = await v.commands.set_mode("GUIDED", timeout=1.0, confirm_timeout=1.0)
+    assert res.ok
+    assert res.value == 15
+    await v.stop()
+
+
+async def test_set_mode_accepted_but_not_confirmed() -> None:
+    v = Vehicle(1, 1)
+
+    async def ack_only(msg: MavlinkMessage) -> None:
+        if msg.get_type() == "COMMAND_LONG":
+            v.deliver(_ack(int(msg.to_dict()["command"]), result=0))  # ACK, no heartbeat
+
+    v.bind_output(send=ack_only, make=CODEC.make)
+    v.start()
+    res = await v.commands.set_mode("GUIDED", timeout=1.0, confirm_timeout=0.15)
+    assert not res.ok
+    assert res.error is not None and "not observed" in res.error
+    await v.stop()
+
+
+async def test_set_safety_sends_command_5300() -> None:
+    v = Vehicle(1, 1)
+    sent: list[MavlinkMessage] = []
+
+    async def responder(msg: MavlinkMessage) -> None:
+        sent.append(msg)
+        if msg.get_type() == "COMMAND_LONG":
+            v.deliver(_ack(int(msg.to_dict()["command"]), result=0))
+
+    v.bind_output(send=responder, make=CODEC.make)
+    v.start()
+    res = await v.commands.set_safety(True, timeout=1.0)  # engage safety
+    assert res.ok
+    d = sent[0].to_dict()
+    assert int(d["command"]) == 5300  # MAV_CMD_DO_SET_SAFETY_SWITCH_STATE
+    assert int(d["param1"]) == 0  # SAFETY_SWITCH_STATE_SAFE
+    # disengage → DANGEROUS(1)
+    res2 = await v.commands.set_safety(False, timeout=1.0)
+    assert res2.ok
+    assert int(sent[-1].to_dict()["param1"]) == 1
     await v.stop()
 
 

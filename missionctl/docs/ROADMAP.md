@@ -41,6 +41,14 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 - [x] Vehicle actor survives a malformed message (guarded reduce + logging)
 - [x] Request telemetry streams on connect (REQUEST_DATA_STREAM ALL)
 - [x] `UdpLink.open()` idempotent (double-open no longer rebinds the socket)
+- [x] Vehicle lost detection: `link_alive` flips false after a heartbeat-timeout,
+      true again when telemetry resumes (per-vehicle monitor task)
+- [x] Link reconnection: `run_link(reconnect=True)` reopens on EOF/error with
+      exponential backoff until cancelled
+- [x] `set_mode(confirm=True)`: confirm the change via HEARTBEAT.custom_mode, not
+      just COMMAND_ACK (verified on 4.6.3)
+- [x] `set_safety(safe)`: toggle safety switch via MAV_CMD_DO_SET_SAFETY_SWITCH_STATE
+      (verified accepted on 4.6.3)
 
 ## M4 — Multi-vehicle  ✅
 - [x] `FleetManager`: multiple links; each vehicle bound to its discovery link's

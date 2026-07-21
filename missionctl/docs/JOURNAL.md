@@ -5,6 +5,26 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — Robustness pass (lost/reconnect/mode-confirm/safety) ✅
+
+Four operator-requested hardening items:
+- Vehicle lost detection: a per-vehicle monitor task marks `VehicleState.link_alive`
+  false when no HEARTBEAT arrives within `heartbeat_timeout` (default 3 s), and true
+  again when telemetry resumes. Liveness is actor-managed metadata; reducers stay
+  pure (they never read time — the actor stamps last-heartbeat via the loop clock).
+- Link reconnection: `run_link(reconnect=True)` reopens the link on EOF or
+  OSError/ConnectionError with exponential backoff (1→16 s) until cancelled;
+  vehicles go link_alive=false via their own timeout and recover on resume.
+- `set_mode(confirm=True)` (default): after the ACK, wait for a HEARTBEAT reporting
+  the new custom_mode before declaring success (ACK ≠ applied). Opens the HEARTBEAT
+  feed BEFORE sending so the confirming heartbeat isn't missed (same
+  register-before-send race the unit test caught; 1 Hz SITL heartbeats had masked it).
+- `set_safety(safe)`: MAV_CMD_DO_SET_SAFETY_SWITCH_STATE (5300), SAFE=0/DANGEROUS=1.
+- Verified on real 4.6.3: link_alive true on connect; set_mode FBWA/GUIDED confirmed
+  (state reflects the change); set_safety(True/False) both ACCEPTED. Lost detection
+  and reconnection covered by headless tests (FlakyLink + short-timeout monitor).
+- 58 headless tests + 3 sitl.
+
 ## 2026-07-20 — M4 multi-vehicle (verified on 2× real SITL) ✅
 
 - Fixed the FleetManager outbound binding for multi-link: each vehicle now binds

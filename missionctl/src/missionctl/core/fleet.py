@@ -12,6 +12,8 @@ outbound" is race-free even with multiple links pumping concurrently on the loop
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 from collections.abc import Awaitable, Callable, Iterable
 from typing import NamedTuple
 
@@ -20,6 +22,11 @@ from missionctl.core.link import Link
 from missionctl.core.router import Address, Router
 from missionctl.core.util.observable import Observable
 from missionctl.core.vehicle import Vehicle
+
+log = logging.getLogger(__name__)
+
+_RECONNECT_BACKOFF_START = 1.0
+_RECONNECT_BACKOFF_MAX = 16.0
 
 
 class _Outbound(NamedTuple):
@@ -64,13 +71,21 @@ class FleetManager:
                 self._router.route(msg)
 
     async def run_link(
-        self, link: Link, codec: MavlinkCodec | None = None, *, request_streams: bool = True
+        self,
+        link: Link,
+        codec: MavlinkCodec | None = None,
+        *,
+        request_streams: bool = True,
+        reconnect: bool = False,
     ) -> None:
         """Open a link and pump its bytes through the codec + router until EOF.
 
         One codec instance per link (it holds parser state). Vehicles discovered on
         this link bind to its outbound. Set ``request_streams=False`` for read-only
-        sources like tlog replay.
+        sources like tlog replay. With ``reconnect=True``, on EOF or a transport
+        error the link is closed and reopened with exponential backoff until the
+        task is cancelled — vehicles then go link_alive=False via their own
+        heartbeat timeout and recover when telemetry resumes.
         """
         codec = codec or MavlinkCodec()
 
@@ -78,15 +93,30 @@ class FleetManager:
             await link.write(codec.encode(msg))
 
         outbound = _Outbound(send=send, make=codec.make)
-        await link.open()
-        while chunk := await link.read():
-            messages = codec.decode(chunk)
-            # Set the active context right before the synchronous routing block.
-            self._active_outbound = outbound
-            self._active_request_streams = request_streams
-            for msg in messages:
-                if _is_real_source(msg):
-                    self._router.route(msg)
+        backoff = _RECONNECT_BACKOFF_START
+        while True:
+            try:
+                await link.open()
+                backoff = _RECONNECT_BACKOFF_START  # reset after a clean open
+                while chunk := await link.read():
+                    messages = codec.decode(chunk)
+                    # Set the active context right before the sync routing block.
+                    self._active_outbound = outbound
+                    self._active_request_streams = request_streams
+                    for msg in messages:
+                        if _is_real_source(msg):
+                            self._router.route(msg)
+            except (OSError, ConnectionError) as exc:
+                if not reconnect:
+                    raise
+                log.warning("link error on %s: %s — reconnecting", type(link).__name__, exc)
+
+            if not reconnect:
+                return
+            with contextlib.suppress(Exception):
+                await link.close()
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, _RECONNECT_BACKOFF_MAX)
 
     async def stop(self) -> None:
         await asyncio.gather(*(v.stop() for v in self._vehicles.values()))

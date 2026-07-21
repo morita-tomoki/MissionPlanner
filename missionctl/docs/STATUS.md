@@ -45,9 +45,17 @@
   real SITL instances** (sysid 1/2 on 14550/14560): independent state + group arm
   via `asyncio.gather`. 53 headless tests + 3 sitl tests.
 
+## Robustness pass (done 2026-07-20)
+- Vehicle lost detection (`link_alive` via per-vehicle heartbeat-timeout monitor);
+  link reconnection (`run_link(reconnect=True)`, exp backoff); `set_mode(confirm=
+  True)` confirms via HEARTBEAT; `set_safety(safe)` (MAV_CMD_DO_SET_SAFETY_SWITCH_
+  STATE 5300). Mode-confirm + safety verified on real 4.6.3; lost/reconnect via
+  headless tests. 58 headless tests + 3 sitl.
+
 ## Now
 - Nothing in progress. The whole C2 core (connect → telemetry → commands →
-  params → mission → multi-vehicle) is implemented and SITL-verified.
+  params → mission → multi-vehicle) is implemented, SITL-verified on 4.6.3, and
+  hardened (lost detection, reconnection, mode-confirm, safety switch).
 
 ## Next single action
 - **M5 — Qt/QML UI** (the largest remaining chunk). Start `missionctl.qt`:

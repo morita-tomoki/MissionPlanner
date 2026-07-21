@@ -54,6 +54,9 @@ class VehicleState:
     position: GlobalPosition = field(default_factory=GlobalPosition)
     battery: Battery = field(default_factory=Battery)
     gps: Gps = field(default_factory=Gps)
+    # Connection liveness (actor-managed metadata, not a telemetry reducer): True
+    # while HEARTBEATs are arriving, False once none seen within the timeout.
+    link_alive: bool = True
 
     @staticmethod
     def initial(sysid: int = 0, compid: int = 0) -> VehicleState:

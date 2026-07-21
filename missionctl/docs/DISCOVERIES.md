@@ -89,6 +89,13 @@ build/sitl/bin/arduplane --model plane --speedup 10 \
 
 ## Commands (Plane)
 
+- Safety switch: MAV_CMD_DO_SET_SAFETY_SWITCH_STATE = 5300, param1 =
+  SAFETY_SWITCH_STATE_SAFE(0) / DANGEROUS(1). SITL 4.6.3 ACKs it ACCEPTED.
+- set_mode confirmation: a COMMAND_ACK for DO_SET_MODE means "accepted", not
+  "applied". Confirm by watching HEARTBEAT.custom_mode. Open that HEARTBEAT feed
+  BEFORE sending the command — the confirming heartbeat can arrive right after the
+  ACK, and 1 Hz SITL heartbeats masked the miss until a unit test caught it.
+
 - Arm/disarm: `COMMAND_LONG` command=400 (MAV_CMD_COMPONENT_ARM_DISARM),
   param1=1/0, param2=21196 to force. Set mode: command=176 (MAV_CMD_DO_SET_MODE),
   param1=1 (MAV_MODE_FLAG_CUSTOM_MODE_ENABLED), param2=custom_mode number.

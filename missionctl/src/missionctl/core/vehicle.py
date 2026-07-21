@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import replace
 
 from missionctl.core.codec import MavlinkMessage
 from missionctl.core.protocols import (
@@ -38,12 +39,20 @@ _DATA_STREAM_ALL = 0
 
 
 class Vehicle:
-    def __init__(self, sysid: int, compid: int) -> None:
+    def __init__(
+        self,
+        sysid: int,
+        compid: int,
+        *,
+        heartbeat_timeout: float = 3.0,
+        monitor_interval: float = 1.0,
+    ) -> None:
         self.sysid = sysid
         self.compid = compid
         self._inbox: asyncio.Queue[MavlinkMessage] = asyncio.Queue()
         self._state: Observable[VehicleState] = Observable(VehicleState.initial(sysid, compid))
         self._task: asyncio.Task[None] | None = None
+        self._monitor_task: asyncio.Task[None] | None = None
         self._waiters: list[tuple[Predicate, asyncio.Future[MavlinkMessage]]] = []
         self._streams: list[tuple[Predicate, asyncio.Queue[MavlinkMessage]]] = []
         self._send: SendFn | None = None
@@ -51,6 +60,9 @@ class Vehicle:
         self._commands: CommandProtocol | None = None
         self._params: ParamProtocol | None = None
         self._mission: MissionProtocol | None = None
+        self._heartbeat_timeout = heartbeat_timeout
+        self._monitor_interval = monitor_interval
+        self._last_heartbeat: float | None = None
 
     @property
     def address(self) -> tuple[int, int]:
@@ -82,7 +94,12 @@ class Vehicle:
         """Wire the outbound path (called by FleetManager with the link's writer)."""
         self._send = send
         self._make = make
-        self._commands = CommandProtocol(make=make, request=self.request, target=self.address)
+        self._commands = CommandProtocol(
+            make=make,
+            request=self.request,
+            open_stream=self.open_stream,
+            target=self.address,
+        )
         self._params = ParamProtocol(
             make=make,
             send=self._send_message,
@@ -161,13 +178,19 @@ class Vehicle:
             self._task = asyncio.create_task(
                 self._run(), name=f"vehicle-{self.sysid}-{self.compid}"
             )
+            self._monitor_task = asyncio.create_task(
+                self._monitor(), name=f"vehicle-monitor-{self.sysid}-{self.compid}"
+            )
         return self._task
 
     async def stop(self) -> None:
-        if self._task is not None:
-            self._task.cancel()
-            await asyncio.gather(self._task, return_exceptions=True)
-            self._task = None
+        tasks = [t for t in (self._task, self._monitor_task) if t is not None]
+        for t in tasks:
+            t.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._task = None
+        self._monitor_task = None
 
     async def wait_idle(self) -> None:
         """Await until every delivered message has been processed (test helper)."""
@@ -186,9 +209,26 @@ class Vehicle:
                 self._inbox.task_done()
 
     def _process(self, msg: MavlinkMessage) -> None:
-        self._state.set(reduce(self._state.value, msg))
+        new_state = reduce(self._state.value, msg)
+        if msg.get_type() == "HEARTBEAT":
+            self._last_heartbeat = asyncio.get_running_loop().time()
+            if not new_state.link_alive:
+                new_state = replace(new_state, link_alive=True)  # link came back
+        self._state.set(new_state)
         self._resolve_waiters(msg)
         self._fan_out_to_streams(msg)
+
+    async def _monitor(self) -> None:
+        """Mark the link lost if no HEARTBEAT arrives within the timeout. Connection
+        liveness is actor-managed metadata (the pure reducers never see time)."""
+        loop = asyncio.get_running_loop()
+        while True:
+            await asyncio.sleep(self._monitor_interval)
+            if self._last_heartbeat is None:
+                continue
+            alive = (loop.time() - self._last_heartbeat) <= self._heartbeat_timeout
+            if alive != self._state.value.link_alive:
+                self._state.set(replace(self._state.value, link_alive=alive))
 
     def _resolve_waiters(self, msg: MavlinkMessage) -> None:
         for entry in list(self._waiters):
