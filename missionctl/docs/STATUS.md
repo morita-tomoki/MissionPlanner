@@ -4,8 +4,8 @@
 > Update it at the end of every session (`/end-session`).
 
 ## Baseline
-- Branch: `claude/hud-structure-rendering-ja83ju` (M0 PR merged; M1–M3 on top).
-- `make check`: green locally — 39 tests, ruff, pyright strict, 2 import contracts.
+- Branch: `claude/hud-structure-rendering-ja83ju` — open PR #2 (M1–M3) into master.
+- `make check`: green locally — 44 tests, ruff, pyright strict, 2 import contracts.
 
 ## Scope (ADR-0005)
 - Control target = **Plane**. Rover = display-only (vessel). Copter = excluded.
@@ -14,21 +14,25 @@
 - M0 operating scaffold; M1 transport & codec (`UdpLink` = SITL transport).
 - **M2 state from telemetry**: Router, Vehicle actor, FleetManager, 5 reducers.
 - **M3 commands (CommandProtocol)**: arm/disarm + set_mode for Plane via
-  `COMMAND_LONG`→`COMMAND_ACK`, explicit timeout + bounded retries, `Result`
-  outcomes. Vehicle gained an outbound path (`bind_output`) and a `request`
-  primitive (registers the reply waiter *before* sending, so ACKs aren't missed).
-  `core/modes.py` Plane mode table. 39 tests (arm/nack/timeout/set_mode/bad-mode).
+  `COMMAND_LONG`→`COMMAND_ACK`, timeout + retries, `Result` outcomes. Vehicle
+  `request` primitive. `core/modes.py` Plane mode table.
+- **M3 params (ParamProtocol)**: get (PARAM_REQUEST_READ→PARAM_VALUE), set
+  (PARAM_SET→PARAM_VALUE), download_all (PARAM_REQUEST_LIST→N×PARAM_VALUE, with a
+  progress callback; completes at param_count, fails on idle). Added Vehicle
+  `open_stream` primitive and `protocols/channel.py` (shared I/O contracts +
+  `MessageStream`). 44 tests.
 
 ## Now
 - Nothing in progress.
 
 ## Next single action
-- **M3 cont. — `ParamProtocol`** in `core/protocols/param.py`: get one
-  (PARAM_REQUEST_READ→PARAM_VALUE), set (PARAM_SET→confirming PARAM_VALUE), and
-  download-all (PARAM_REQUEST_LIST→N×PARAM_VALUE with progress via `IProgress`-style
-  callback). Reuse the Vehicle `request` primitive; for download-all add a
-  streaming variant that collects until the expected count. Follow `/add-protocol`.
-  Unit-test with a fake responder; SITL later.
+- **M3 cont. — `MissionProtocol`** in `core/protocols/mission.py`: download
+  (MISSION_REQUEST_LIST → MISSION_COUNT → N× MISSION_REQUEST_INT/MISSION_ITEM_INT),
+  upload (MISSION_COUNT → serve MISSION_REQUEST_INT → MISSION_ACK), and
+  set-current (MISSION_SET_CURRENT). Uses both `request` and `open_stream`; the
+  upload direction is a state machine (we answer the vehicle's item requests).
+  Follow `/add-protocol`. Unit-test with a fake vehicle responder; SITL later.
+  NOTE: mission items use frame/command enums — keep pymavlink confined to codec.
 
 ## Later (waiting on external)
 - **SITL** in a separate repo; connect via `UdpLink(local_addr=("0.0.0.0", 14550))`.

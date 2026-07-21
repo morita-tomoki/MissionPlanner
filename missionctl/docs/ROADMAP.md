@@ -28,8 +28,9 @@ only when its slice is merged and green. Keep `STATUS.md` pointing at the next o
 ## M3 — Commands & protocols (async, cancellable, retrying)  — Plane (ADR-0005)
 - [x] `CommandProtocol`: arm/disarm, set_mode (COMMAND_LONG + COMMAND_ACK,
       timeout + retries); Vehicle outbound `request` primitive; Plane mode table
-- [ ] `ParamProtocol`: get / set / download-all with progress  ← next
-- [ ] `MissionProtocol`: download / upload / set-current
+- [x] `ParamProtocol`: get / set / download-all with progress (Vehicle
+      `open_stream` primitive + `protocols/channel.py` I/O contracts)
+- [ ] `MissionProtocol`: download / upload / set-current  ← next
 - [ ] SITL smoke test: connect → arm → set GUIDED → disarm (waiting on SITL @14550)
 
 ## M4 — Multi-vehicle

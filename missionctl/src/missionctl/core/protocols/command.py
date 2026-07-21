@@ -9,10 +9,9 @@ registers the reply waiter *before* sending so an ACK can't be missed.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-
 from missionctl.core.codec import MavlinkMessage
 from missionctl.core.modes import PLANE_MODES
+from missionctl.core.protocols.channel import MakeFn, RequestFn
 from missionctl.core.util.result import Result
 
 # MAVLink standard constants (stable; kept here to avoid importing pymavlink
@@ -22,10 +21,6 @@ _CMD_DO_SET_MODE = 176
 _MODE_FLAG_CUSTOM_MODE_ENABLED = 1
 _RESULT_ACCEPTED = 0
 _ARM_FORCE_MAGIC = 21196.0  # param2 to bypass prearm checks (only when forced)
-
-Predicate = Callable[[MavlinkMessage], bool]
-MakeFn = Callable[..., MavlinkMessage]
-RequestFn = Callable[[MavlinkMessage, Predicate, float], Awaitable[MavlinkMessage]]
 
 
 class CommandProtocol:

@@ -5,6 +5,25 @@ what changed, why, and what's next. This is the narrative memory of the project.
 
 ---
 
+## 2026-07-20 — M3 params (ParamProtocol) + streaming primitive
+
+- `ParamProtocol` (`core/protocols/param.py`): `get` (PARAM_REQUEST_READ→
+  PARAM_VALUE), `set` (PARAM_SET as REAL32→confirming PARAM_VALUE), and
+  `download_all` (PARAM_REQUEST_LIST→N×PARAM_VALUE), with a progress callback;
+  completes at the advertised param_count, fails on idle. Per-index re-request of
+  dropped params is left as a future refinement (noted in code).
+- Added a second Vehicle primitive, `open_stream(predicate) -> MessageStream`, for
+  streamed responses (download vs. one-shot `request`). Extracted the protocol↔
+  vehicle I/O contracts into `core/protocols/channel.py` (Predicate/MakeFn/SendFn/
+  RequestFn/OpenStreamFn + MessageStream) so vehicle depends downward on protocols
+  and there's no import cycle. `command.py` now imports its aliases from there.
+- Opened PR #2 (M1–M3) into master; our `check` CI job is green (the failing
+  `Build OSX` job is the legacy C# build, unrelated to missionctl/).
+- 44 tests green (param get/set/timeout, download_all full + incomplete). Next:
+  MissionProtocol.
+
+---
+
 ## 2026-07-20 — M3 commands (Plane) + scope decision
 
 - Scope confirmed by operator and recorded as ADR-0005: **control target = Plane**,
