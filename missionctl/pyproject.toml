@@ -38,7 +38,9 @@ packages = ["src/missionctl"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-q"
+# Exclude SITL-marked tests from the default headless run; `make sitl` overrides
+# this with `-m sitl`.
+addopts = "-q -m 'not sitl'"
 
 [tool.ruff]
 line-length = 100
@@ -48,6 +50,15 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 # pycodestyle, pyflakes, isort, bugbear, pyupgrade, async-specific checks.
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
+# ASYNC109: flags `timeout` parameters on async functions. Our protocol API
+# deliberately takes explicit per-operation timeouts (arm/set_mode/request);
+# the timeout is applied internally with `asyncio.timeout`. Intentional design.
+ignore = ["ASYNC109"]
+
+[tool.ruff.lint.per-file-ignores]
+# waiters poll state that other tasks mutate; an Event-based rewrite would need
+# the Observable to expose an awaitable — overkill for a test helper.
+"tests/support/waiters.py" = ["ASYNC110"]
 
 [tool.pyright]
 include = ["src", "tests"]
@@ -57,4 +68,14 @@ typeCheckingMode = "strict"
 [[tool.pyright.executionEnvironments]]
 root = "src/missionctl/qt"
 reportUnknownMemberType = "none"
+reportMissingTypeStubs = "none"
+
+# The codec is the one place that touches untyped pymavlink. Relaxing unknown-type
+# reporting is confined to this boundary module; its public API stays fully typed
+# (MavlinkMessage), so the rest of the strict core is unaffected. See ADR-0004.
+[[tool.pyright.executionEnvironments]]
+root = "src/missionctl/core/codec"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
 reportMissingTypeStubs = "none"

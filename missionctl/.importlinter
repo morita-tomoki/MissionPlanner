@@ -24,6 +24,12 @@ name = layering (lower layers must not import upper layers)
 type = layers
 layers =
     missionctl.qt
+    missionctl.core.fleet
+    missionctl.core.vehicle
+    missionctl.core.protocols
+    missionctl.core.router
     missionctl.core.state
+    missionctl.core.codec
+    missionctl.core.modes
     missionctl.core.link
     missionctl.core.util
